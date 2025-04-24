@@ -1,4 +1,4 @@
-// Straphshots with Firebase Firestore Integration
+// Straphshots with Firestore Persistence Fix
 import { useState, useEffect } from "react";
 import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
@@ -29,6 +29,24 @@ export default function App() {
   const [admin, setAdmin] = useState(false);
 
   useEffect(() => {
+    const fetchInitialData = async () => {
+      const snapshot = await getDocs(collection(db, "people"));
+      const all = [];
+      const reasonsData = {};
+      const shotsData = {};
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        all.push(docSnap.id);
+        reasonsData[docSnap.id] = data.reasons || [];
+        shotsData[docSnap.id] = data.shots || 0;
+      });
+      setPeople(all);
+      setReasons(reasonsData);
+      setShotsTaken(shotsData);
+    };
+
+    fetchInitialData();
+
     const unsub = onSnapshot(collection(db, "people"), (snapshot) => {
       const all = [];
       const reasonsData = {};
@@ -43,6 +61,7 @@ export default function App() {
       setReasons(reasonsData);
       setShotsTaken(shotsData);
     });
+
     return () => unsub();
   }, []);
 
@@ -62,6 +81,7 @@ export default function App() {
 
   const addReason = async (name) => {
     const { reason, points } = inputStates[name];
+    if (!reason || isNaN(parseInt(points, 10))) return;
     const entry = { reason, points: parseInt(points, 10) };
     const updated = [...(reasons[name] || []), entry];
     await updateDoc(doc(db, "people", name), { reasons: updated });
